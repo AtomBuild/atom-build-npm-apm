@@ -25,9 +25,6 @@
     "eslint-config-airbnb": "^1.0.0",
     "eslint-plugin-react": "^3.10.0"
   },
-  "scripts": {
-    "test": "jscs lib/*.js spec/*-spec.js && jshint lib/*.js spec/*-spec.js"
-  },
   "keywords": [
     "build",
     "compile",
