@@ -2,7 +2,7 @@
   "name": "build-npm-apm",
   "version": "0.3.0",
   "description": "Runs npm/apm targets",
-  "repository": "https://github.com/noseglid/atom-build-npm-apm",
+  "repository": "https://github.com/AtomBuild/atom-build-npm-apm",
   "license": "MIT",
   "engines": {
     "atom": "^1.0.0"
