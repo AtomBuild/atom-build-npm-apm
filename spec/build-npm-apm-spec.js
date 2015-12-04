@@ -1,27 +1,21 @@
 'use babel';
 
 import temp from 'temp';
-import _ from 'lodash';
 import fs from 'fs-extra';
-import specHelpers from 'atom-build-spec-helpers';
+import { vouch } from 'atom-build-spec-helpers';
+import { provideBuilder } from '../lib/npm-apm';
 
-describe('npm-apm provider', () => {
+describe('npm apm provider', () => {
   let directory;
-  let workspaceElement;
+  let builder;
+  const Builder = provideBuilder();
 
-  beforeEach( () => {
-    workspaceElement = atom.views.getView(atom.workspace);
-    jasmine.attachToDOM(workspaceElement);
-    jasmine.unspy(window, 'setTimeout');
-    jasmine.unspy(window, 'clearTimeout');
-
-    atom.notifications.clear();
+  beforeEach(() => {
     waitsForPromise(() => {
-      return Promise.resolve()
-        .then(() => specHelpers.vouch(temp.mkdir, 'atom-build-npm-apm-spec-'))
-        .then((dir) => specHelpers.vouch(fs.realpath, dir))
-        .then((dir) => atom.project.setPaths([ directory = dir + '/' ]))
-        .then(() => specHelpers.activate('build-npm-apm'));
+      return vouch(temp.mkdir, 'atom-build-spec-npm-apm-')
+        .then((dir) => vouch(fs.realpath, dir))
+        .then((dir) => directory = `${dir}/`)
+        .then((dir) => builder = new Builder(dir));
     });
   });
 
@@ -29,103 +23,70 @@ describe('npm-apm provider', () => {
     fs.removeSync(directory);
   });
 
-  it('should show the build window if it is node engine', () => {
-    expect(workspaceElement.querySelector('.build')).not.toExist();
-
-    fs.writeFileSync(directory + 'package.json', fs.readFileSync(__dirname + '/package.json.node'));
-
-    waitsForPromise(() => specHelpers.refreshAwaitTargets());
-
-    runs(() => atom.commands.dispatch(workspaceElement, 'build:trigger'));
-
-    waitsFor(() => {
-      return workspaceElement.querySelector('.build .title') &&
-        workspaceElement.querySelector('.build .title').classList.contains('success');
+  describe('when package.json with node engine exists', () => {
+    it('should be eligible', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.node`));
+      expect(builder.isEligible()).toBe(true);
     });
 
-    runs(() => {
-      expect(workspaceElement.querySelector('.build')).toExist();
-      expect(workspaceElement.querySelector('.build .output').textContent).toMatch(/^Executing: npm/);
-    });
-  });
+    it('should provide default targets along with scripts', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.node`));
+      expect(builder.isEligible()).toBe(true);
+      waitsForPromise(() => {
+        return Promise.resolve(builder.settings()).then(settings => {
+          expect(settings.length).toBe(2);
 
-  it('should show the build window if it is atom engine', () => {
-    if (process.env.TRAVIS) {
-      return;
-    }
+          const defaultTarget = settings.find(s => s.name === 'npm: default');
+          expect(defaultTarget.exec).toBe('npm');
+          expect(defaultTarget.sh).toBe(false);
+          expect(defaultTarget.args).toEqual([ '--color=always', 'install' ]);
 
-    expect(workspaceElement.querySelector('.build')).not.toExist();
-
-    runs(() => fs.writeFileSync(directory + 'package.json', fs.readFileSync(__dirname + '/package.json.atom')));
-
-    waitsForPromise(() => specHelpers.refreshAwaitTargets());
-
-    runs(() => atom.commands.dispatch(workspaceElement, 'build:trigger'));
-
-    waitsFor(() => {
-      return workspaceElement.querySelector('.build .title') &&
-        workspaceElement.querySelector('.build .title').classList.contains('success');
-    }, 'build to be successful', 10000);
-
-    runs(() => {
-      expect(workspaceElement.querySelector('.build')).toExist();
-      expect(workspaceElement.querySelector('.build .output').textContent).toMatch(/^Executing: apm/);
-    });
-  });
-
-  it('should not do anything if engines are not available in the file', () => {
-    expect(workspaceElement.querySelector('.build')).not.toExist();
-
-    fs.writeFileSync(directory + 'package.json', fs.readFileSync(__dirname + '/package.json.noengine'));
-
-    waitsForPromise(() => specHelpers.refreshAwaitTargets());
-
-    runs(() => atom.commands.dispatch(workspaceElement, 'build:trigger'));
-
-    waits(1000);
-
-    runs(() => {
-      expect(workspaceElement.querySelector('.build')).not.toExist();
-    });
-  });
-
-  it('should list scripts as build targets', () => {
-    expect(workspaceElement.querySelector('.build')).not.toExist();
-
-    fs.writeFileSync(directory + 'package.json', fs.readFileSync(__dirname + '/package.json.node'));
-
-    waitsForPromise(() => specHelpers.refreshAwaitTargets());
-
-    runs(() => atom.commands.dispatch(workspaceElement, 'build:select-active-target'));
-
-    waitsFor( () => {
-      return workspaceElement.querySelector('.select-list li.build-target');
-    });
-
-    runs( () => {
-      const targets = [...workspaceElement.querySelectorAll('.select-list li.build-target')].map(el => el.textContent);
-      expect(targets).toEqual([ 'npm: default', 'npm: custom script' ]);
-    });
-  });
-
-  it('should list package.json files with engine atom scripts as run by NPM', () => {
-    expect(workspaceElement.querySelector('.build')).not.toExist();
-
-    fs.writeFileSync(directory + 'package.json', fs.readFileSync(__dirname + '/package.json.atom'));
-
-    waitsForPromise(() => specHelpers.refreshAwaitTargets());
-
-    runs(() => atom.commands.dispatch(workspaceElement, 'build:select-active-target'));
-
-    waitsFor( () => {
-      return workspaceElement.querySelector('.select-list li.build-target');
-    });
-
-    runs( () => {
-      const targets = _.map(workspaceElement.querySelectorAll('.select-list li.build-target'), (el) => {
-        return el.textContent;
+          const customTarget = settings.find(s => s.name === 'npm: custom script');
+          expect(customTarget.exec).toBe('npm');
+          expect(customTarget.sh).toBe(false);
+          expect(customTarget.args).toEqual([ '--color=always', 'run', 'custom script' ]);
+        });
       });
-      expect(targets).toEqual([ 'apm: default', 'npm: custom script' ]);
+    });
+  });
+
+  describe('when package.json with apm engine', () => {
+    it('should be eligible', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.atom`));
+      expect(builder.isEligible()).toBe(true);
+    });
+
+    it('should provide default targets along with scripts', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.atom`));
+      expect(builder.isEligible()).toBe(true);
+      waitsForPromise(() => {
+        return Promise.resolve(builder.settings()).then(settings => {
+          expect(settings.length).toBe(2);
+
+          const defaultTarget = settings.find(s => s.name === 'apm: default');
+          expect(defaultTarget.exec).toBe('apm');
+          expect(defaultTarget.sh).toBe(false);
+          expect(defaultTarget.args).toEqual([ '--color=always', 'install' ]);
+
+          const customTarget = settings.find(s => s.name === 'npm: custom script');
+          expect(customTarget.exec).toBe('npm');
+          expect(customTarget.sh).toBe(false);
+          expect(customTarget.args).toEqual([ '--color=always', 'run', 'custom script' ]);
+        });
+      });
+    });
+  });
+
+  describe('when package.json exists, but no engines', () => {
+    it('should not be eligible', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.noengine`));
+      expect(builder.isEligible()).toBe(false);
+    });
+  });
+
+  describe('when no package.json exists', () => {
+    it('should not be eligible', () => {
+      expect(builder.isEligible()).toBe(false);
     });
   });
 });
