@@ -39,12 +39,12 @@ describe('npm apm provider', () => {
           const defaultTarget = settings.find(s => s.name === 'npm: default');
           expect(defaultTarget.exec).toBe('npm');
           expect(defaultTarget.sh).toBe(false);
-          expect(defaultTarget.args).toEqual([ '--color=always', 'install' ]);
+          expect(defaultTarget.args).toEqual([ 'install' ]);
 
           const customTarget = settings.find(s => s.name === 'npm: custom script');
           expect(customTarget.exec).toBe('npm');
           expect(customTarget.sh).toBe(false);
-          expect(customTarget.args).toEqual([ '--color=always', 'run', 'custom script' ]);
+          expect(customTarget.args).toEqual([ 'run', 'custom script' ]);
         });
       });
     });
@@ -66,12 +66,12 @@ describe('npm apm provider', () => {
           const defaultTarget = settings.find(s => s.name === 'apm: default');
           expect(defaultTarget.exec).toBe('apm');
           expect(defaultTarget.sh).toBe(false);
-          expect(defaultTarget.args).toEqual([ '--color=always', 'install' ]);
+          expect(defaultTarget.args).toEqual([ 'install' ]);
 
           const customTarget = settings.find(s => s.name === 'npm: custom script');
           expect(customTarget.exec).toBe('npm');
           expect(customTarget.sh).toBe(false);
-          expect(customTarget.args).toEqual([ '--color=always', 'run', 'custom script' ]);
+          expect(customTarget.args).toEqual([ 'run', 'custom script' ]);
         });
       });
     });
