@@ -36,7 +36,7 @@ describe('npm apm provider', () => {
         return Promise.resolve(builder.settings()).then(settings => {
           expect(settings.length).toBe(2);
 
-          const defaultTarget = settings.find(s => s.name === 'npm: default');
+          const defaultTarget = settings.find(s => s.name === 'npm: install');
           expect(defaultTarget.exec).toBe('npm');
           expect(defaultTarget.sh).toBe(false);
           expect(defaultTarget.args).toEqual([ 'install' ]);
@@ -63,7 +63,7 @@ describe('npm apm provider', () => {
         return Promise.resolve(builder.settings()).then(settings => {
           expect(settings.length).toBe(2);
 
-          const defaultTarget = settings.find(s => s.name === 'apm: default');
+          const defaultTarget = settings.find(s => s.name === 'apm: install');
           expect(defaultTarget.exec).toBe('apm');
           expect(defaultTarget.sh).toBe(false);
           expect(defaultTarget.args).toEqual([ 'install' ]);
@@ -78,9 +78,24 @@ describe('npm apm provider', () => {
   });
 
   describe('when package.json exists, but no engines', () => {
-    it('should not be eligible', () => {
+    it('should be eligible', () => {
       fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.noengine`));
-      expect(builder.isEligible()).toBe(false);
+      expect(builder.isEligible()).toBe(true);
+    });
+
+    it('should use it with npm', () => {
+      fs.writeFileSync(`${directory}/package.json`, fs.readFileSync(`${__dirname}/package.json.noengine`));
+      expect(builder.isEligible()).toBe(true);
+      waitsForPromise(() => {
+        return Promise.resolve(builder.settings()).then(settings => {
+          expect(settings.length).toBe(1);
+
+          const defaultTarget = settings.find(s => s.name === 'npm: install');
+          expect(defaultTarget.exec).toBe('npm');
+          expect(defaultTarget.sh).toBe(false);
+          expect(defaultTarget.args).toEqual([ 'install' ]);
+        });
+      });
     });
   });
 
