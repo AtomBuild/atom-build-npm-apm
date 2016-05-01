@@ -104,4 +104,41 @@ describe('npm apm provider', () => {
       expect(builder.isEligible()).toBe(false);
     });
   });
+
+  describe('when package.json is altered', () => {
+    it('should update targets', () => {
+      const pkg = JSON.parse(fs.readFileSync(`${__dirname}/package.json.node`));
+      fs.writeFileSync(`${directory}/package.json`, JSON.stringify(pkg));
+
+      expect(builder.isEligible()).toBe(true);
+
+      waitsForPromise(() => {
+        return Promise.resolve(builder.settings()).then(settings => {
+          expect(settings.length).toBe(2);
+        });
+      });
+
+      // FileWatcher isn't always ready when it returns, depending
+      // on OS and probably other factors. There doesn't seem to be
+      // a reliable way to know, so just wait a little bit.
+      waits(1000);
+
+      waitsForPromise(() => new Promise(resolve => {
+        builder.on('refresh', resolve);
+        pkg.scripts = { 'task': 'echo all the things' };
+        fs.writeFileSync(`${directory}/package.json`, JSON.stringify(pkg));
+      }));
+
+      waitsForPromise(() => {
+        return Promise.resolve(builder.settings()).then(settings => {
+          expect(settings.length).toBe(2);
+
+          const target = settings.find(s => s.name === 'npm: task');
+          expect(target.exec).toBe('npm');
+          expect(target.sh).toBe(false);
+          expect(target.args).toEqual([ 'run', 'task' ]);
+        });
+      });
+    });
+  });
 });
